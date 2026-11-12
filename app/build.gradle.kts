@@ -88,7 +88,4 @@ dependencies {
     // Libsu Root Engine
     implementation("com.github.topjohnwu.libsu:core:5.2.2")
     implementation("com.github.topjohnwu.libsu:io:5.2.2")
-
-    // Coil Image Loading
-    implementation("io.coil-kt:coil-compose:2.6.0")
 }

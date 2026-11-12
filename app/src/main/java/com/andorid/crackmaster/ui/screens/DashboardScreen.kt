@@ -38,13 +38,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.rememberAsyncImagePainter
+import androidx.core.graphics.drawable.toBitmap
 import com.andorid.crackmaster.R
 import com.andorid.crackmaster.data.SystemDetector
 import com.andorid.crackmaster.ui.components.APatchCard
@@ -78,7 +79,7 @@ fun DashboardScreen(
     ) {
         Spacer(modifier = Modifier.height(18.dp))
 
-        // 1. Top Header Bar: • Crack Master + ACTIVE Badge
+        // 1. Header: • Crack Master + ACTIVE Badge
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -102,7 +103,6 @@ fun DashboardScreen(
                 )
             }
 
-            // ACTIVE Badge Pill
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
@@ -122,7 +122,7 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // 2. Target Game Launcher Card (Interactive Game Launcher)
+        // 2. Target Game Card
         APatchCard(
             modifier = Modifier
                 .fillMaxWidth()
@@ -130,10 +130,10 @@ fun DashboardScreen(
                     if (state.gameInfo.isInstalled) {
                         val launched = SystemDetector.launchGame(context, state.gameInfo.packageName)
                         if (!launched) {
-                            Toast.makeText(context, "Failed to launch game", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Launch failed", Toast.LENGTH_SHORT).show()
                         }
                     } else {
-                        Toast.makeText(context, "Game is not installed (${state.gameInfo.packageName})", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Game not installed", Toast.LENGTH_SHORT).show()
                     }
                 },
             border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.35f)),
@@ -149,20 +149,31 @@ fun DashboardScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Real Installed Game App Icon via PackageManager / Coil
-                    val iconPainter = if (state.gameInfo.icon != null) {
-                        rememberAsyncImagePainter(model = state.gameInfo.icon)
-                    } else {
-                        painterResource(id = R.drawable.ic_game_ffmax)
+                    val gameBitmap = remember(state.gameInfo.icon) {
+                        try {
+                            state.gameInfo.icon?.toBitmap(120, 120)?.asImageBitmap()
+                        } catch (_: Exception) {
+                            null
+                        }
                     }
 
-                    Image(
-                        painter = iconPainter,
-                        contentDescription = state.gameInfo.title,
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                    )
+                    if (gameBitmap != null) {
+                        Image(
+                            bitmap = gameBitmap,
+                            contentDescription = state.gameInfo.title,
+                            modifier = Modifier
+                                .size(54.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_game_ffmax),
+                            contentDescription = state.gameInfo.title,
+                            modifier = Modifier
+                                .size(54.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        )
+                    }
 
                     Spacer(modifier = Modifier.width(14.dp))
 
@@ -175,7 +186,7 @@ fun DashboardScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = if (state.gameInfo.isInstalled) "Version: ${state.gameInfo.versionName}" else "Version: Not Installed",
+                            text = if (state.gameInfo.isInstalled) "Version: ${state.gameInfo.versionName}" else "Version: -",
                             fontSize = 12.sp,
                             color = TextSecondary
                         )
@@ -191,7 +202,6 @@ fun DashboardScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Badges Row: [EXTERNAL] & [Dynamic Device Architecture] & • INSTALLED
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -204,7 +214,6 @@ fun DashboardScreen(
                         }
                     }
 
-                    // Status: • INSTALLED / NOT INSTALLED
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "•",
@@ -226,7 +235,7 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 3. SYSTEM INFO Section (Dynamic Hardware & OS Detection)
+        // 3. SYSTEM INFO
         Text(
             text = "SYSTEM INFO",
             fontSize = 12.sp,
@@ -250,17 +259,17 @@ fun DashboardScreen(
             ) {
                 SystemInfoRow(
                     label = "Root Access",
-                    value = state.systemInfo.rootStatusText.ifBlank { "Detecting..." },
+                    value = state.systemInfo.rootStatusText.ifBlank { "-" },
                     valueColor = if (state.systemInfo.isRootGranted) NeonGreen else ErrorRed
                 )
                 SystemInfoRow(
                     label = "Android",
-                    value = state.systemInfo.androidVersion.ifBlank { "Detecting..." },
+                    value = state.systemInfo.androidVersion.ifBlank { "-" },
                     valueColor = NeonGreen
                 )
                 SystemInfoRow(
                     label = "Device Name",
-                    value = state.systemInfo.deviceName.ifBlank { "Detecting..." },
+                    value = state.systemInfo.deviceName.ifBlank { "-" },
                     valueColor = NeonGreen
                 )
             }
@@ -268,7 +277,7 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 4. SELECT MODE Section
+        // 4. SELECT MODE
         Text(
             text = "SELECT MODE",
             fontSize = 12.sp,
@@ -345,7 +354,7 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 5. ACTIONS Section (START / STOP)
+        // 5. ACTIONS: START / STOP
         Text(
             text = "ACTIONS",
             fontSize = 12.sp,
@@ -380,13 +389,12 @@ fun DashboardScreen(
                 }
 
                 Text(
-                    text = state.launchStatusMessage ?: "Executing into memory...",
+                    text = state.launchStatusMessage ?: "Starting...",
                     fontSize = 13.sp,
                     color = NeonGreen
                 )
             }
         } else {
-            // Strictly START / STOP button
             APatchPillButton(
                 text = if (state.isEngineRunning) "STOP" else "START",
                 onClick = { viewModel.toggleEngine() },

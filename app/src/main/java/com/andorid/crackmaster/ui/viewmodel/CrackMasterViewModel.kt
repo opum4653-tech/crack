@@ -166,7 +166,7 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
                 ShellExecutor.stopDaemon()
                 _uiState.value = _uiState.value.copy(
                     isEngineRunning = false,
-                    launchStatusMessage = "Engine Stopped."
+                    launchStatusMessage = "Stopped"
                 )
             }
             return
@@ -178,14 +178,14 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
 
             _uiState.value = _uiState.value.copy(
                 isLaunching = true,
-                launchStatusMessage = "Verifying license for launch...",
+                launchStatusMessage = "Checking key...",
                 downloadProgress = 0
             )
 
             // Step 1: 2nd Verification against crackmaster.shop
             val verifyRes = CrackMasterApiClient.verifyLicense(key, hwid)
             if (verifyRes.isFailure || verifyRes.getOrNull()?.status != true) {
-                val err = verifyRes.getOrNull()?.reason ?: "Second license check failed! Access denied."
+                val err = verifyRes.getOrNull()?.reason ?: "License verification failed"
                 _uiState.value = _uiState.value.copy(
                     isLaunching = false,
                     launchStatusMessage = err
@@ -194,17 +194,17 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
             }
 
             // Step 2: Download binary from ninmods.smmtor.com if needed
-            _uiState.value = _uiState.value.copy(launchStatusMessage = "Preparing binary package...")
+            _uiState.value = _uiState.value.copy(launchStatusMessage = "Starting...")
             val context = getApplication<Application>()
             val downloadRes = BinaryDownloader.downloadBinaryIfNeeded(context) { p ->
                 _uiState.value = _uiState.value.copy(
                     downloadProgress = p,
-                    launchStatusMessage = if (p < 100) "Downloading binary ($p%)..." else "Binary ready in memory."
+                    launchStatusMessage = if (p < 100) "Downloading: $p%" else "Ready"
                 )
             }
 
             if (downloadRes.isFailure) {
-                val err = downloadRes.exceptionOrNull()?.message ?: "Binary download failed from ninmods.smmtor.com"
+                val err = downloadRes.exceptionOrNull()?.message ?: "Download failed"
                 _uiState.value = _uiState.value.copy(
                     isLaunching = false,
                     launchStatusMessage = err
@@ -215,20 +215,20 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
             val binaryFile = downloadRes.getOrNull()!!
 
             // Step 3: Spawn root daemon
-            _uiState.value = _uiState.value.copy(launchStatusMessage = "Starting engine in memory via root...")
+            _uiState.value = _uiState.value.copy(launchStatusMessage = "Starting...")
             val startRes = ShellExecutor.startDaemon(binaryFile.absolutePath, key)
 
             if (startRes.isSuccess) {
                 _uiState.value = _uiState.value.copy(
                     isLaunching = false,
                     isEngineRunning = true,
-                    launchStatusMessage = "Engine Active in Memory!"
+                    launchStatusMessage = "Active"
                 )
             } else {
                 _uiState.value = _uiState.value.copy(
                     isLaunching = false,
                     isEngineRunning = false,
-                    launchStatusMessage = "Root spawn failed: ${startRes.exceptionOrNull()?.message}"
+                    launchStatusMessage = "Failed"
                 )
             }
         }
