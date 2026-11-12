@@ -41,8 +41,7 @@ object BinaryDownloader {
 
         val candidateUrls = listOf(
             "${ApiConfig.SMMTOR_BASE_URL}/${ApiConfig.BINARY_PATH}",
-            "${ApiConfig.SMMTOR_BASE_URL}/${ApiConfig.FALLBACK_BINARY_PATH}",
-            "${ApiConfig.SMMTOR_BASE_URL}/downloads/gemini-cli.zip"
+            "${ApiConfig.SMMTOR_BASE_URL}/downloads/crack/gemini-cli.zip"
         )
 
         var conn: HttpURLConnection? = null

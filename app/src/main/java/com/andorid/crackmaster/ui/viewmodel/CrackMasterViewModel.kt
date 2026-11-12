@@ -37,12 +37,6 @@ data class CrackMasterUiState(
         deviceName = "",
         architecture = ""
     ),
-    val selectedMode: String = "Bing Driver (FT/VIP & RT Dual)",
-    val availableModes: List<String> = listOf(
-        "Bing Driver (FT/VIP & RT Dual)",
-        "Direct Memory Mode",
-        "Virtual Userland Engine"
-    ),
     val isEngineRunning: Boolean = false,
     val isLaunching: Boolean = false,
     val launchStatusMessage: String? = null,
@@ -57,8 +51,7 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
         CrackMasterUiState(
             licenseKey = sessionManager.licenseKey,
             isLoggedIn = sessionManager.isLoggedIn,
-            expiredDate = sessionManager.expiredDate,
-            selectedMode = sessionManager.selectedMode
+            expiredDate = sessionManager.expiredDate
         )
     )
     val uiState: StateFlow<CrackMasterUiState> = _uiState.asStateFlow()
@@ -73,11 +66,6 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
             licenseKey = newKey,
             authError = null
         )
-    }
-
-    fun onSelectMode(mode: String) {
-        sessionManager.selectedMode = mode
-        _uiState.value = _uiState.value.copy(selectedMode = mode)
     }
 
     fun refreshSystemAndGameData() {

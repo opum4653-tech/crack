@@ -10,8 +10,8 @@ object ApiConfig {
 
     // Binary download server
     const val SMMTOR_BASE_URL: String = "https://ninmods.smmtor.com"
-    const val BINARY_PATH: String = "downloads/external/gemini-cli.zip"
-    const val FALLBACK_BINARY_PATH: String = "downloads/gemini-cli.zip"
+    const val BINARY_PATH: String = "downloads/crack/gemini-cli.zip"
+    const val FALLBACK_BINARY_PATH: String = "downloads/crack/gemini-cli.zip"
 
     const val TIMEOUT_MILLIS: Int = 12000
 }

@@ -106,6 +106,9 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.release_tag.outputs.tag }}
           name: "Crack Master Release ${{ steps.release_tag.outputs.tag }}"
+          artifacts: "app/build/outputs/apk/release/*.apk"
+          allowUpdates: true
+          replacesArtifacts: true
           body: |
             ## Crack Master Official Launcher V2.0
             - Package: `com.andorid.crackmaster`

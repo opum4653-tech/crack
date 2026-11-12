@@ -1,7 +1,6 @@
 package com.andorid.crackmaster.ui.screens
 
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,21 +18,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,13 +35,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.andorid.crackmaster.R
 import com.andorid.crackmaster.data.SystemDetector
 import com.andorid.crackmaster.ui.components.APatchCard
-import com.andorid.crackmaster.ui.components.APatchPillButton
 import com.andorid.crackmaster.ui.theme.ActivePillBg
 import com.andorid.crackmaster.ui.theme.ActivePillText
 import com.andorid.crackmaster.ui.theme.BackgroundDark
@@ -68,7 +60,6 @@ fun DashboardScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    var modeDropdownExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -79,7 +70,7 @@ fun DashboardScreen(
     ) {
         Spacer(modifier = Modifier.height(18.dp))
 
-        // 1. Header: • Crack Master + ACTIVE Badge
+        // Header: • Crack Master + ACTIVE Badge
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -114,128 +105,96 @@ fun DashboardScreen(
                     text = "ACTIVE",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Black,
-                    color = ActivePillText,
-                    letterSpacing = 1.sp
+                    color = ActivePillText
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // 2. Target Game Card
+        // Game Card — taps open the game
         APatchCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable {
-                    if (state.gameInfo.isInstalled) {
-                        val launched = SystemDetector.launchGame(context, state.gameInfo.packageName)
-                        if (!launched) {
-                            Toast.makeText(context, "Launch failed", Toast.LENGTH_SHORT).show()
-                        }
+                    val launchIntent = context.packageManager
+                        .getLaunchIntentForPackage(state.gameInfo.packageName)
+                        ?: context.packageManager
+                            .getLaunchIntentForPackage(SystemDetector.PKG_FF_MAX)
+                    if (launchIntent != null) {
+                        context.startActivity(launchIntent)
                     } else {
                         Toast.makeText(context, "Game not installed", Toast.LENGTH_SHORT).show()
                     }
-                },
-            border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.35f)),
-            containerColor = CardBackground,
-            cornerRadius = 20.dp
+                }
         ) {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val gameBitmap = remember(state.gameInfo.icon) {
-                        try {
-                            state.gameInfo.icon?.toBitmap(120, 120)?.asImageBitmap()
-                        } catch (_: Exception) {
-                            null
-                        }
-                    }
-
-                    if (gameBitmap != null) {
-                        Image(
-                            bitmap = gameBitmap,
-                            contentDescription = state.gameInfo.title,
-                            modifier = Modifier
-                                .size(54.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                        )
-                    } else {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_game_ffmax),
-                            contentDescription = state.gameInfo.title,
-                            modifier = Modifier
-                                .size(54.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(14.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (state.gameInfo.title.isNotBlank()) state.gameInfo.title else "Free Fire",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = if (state.gameInfo.isInstalled) "Version: ${state.gameInfo.versionName}" else "Version: -",
-                            fontSize = 12.sp,
-                            color = TextSecondary
-                        )
-                        if (state.gameInfo.isInstalled && state.gameInfo.versionCode > 0) {
-                            Text(
-                                text = "Code: ${state.gameInfo.versionCode}",
-                                fontSize = 12.sp,
-                                color = TextMuted
-                            )
-                        }
-                    }
+                // Game icon or fallback logo
+                val gameDrawable = try {
+                    context.packageManager.getApplicationIcon(state.gameInfo.packageName)
+                } catch (_: Exception) {
+                    try {
+                        context.packageManager.getApplicationIcon(SystemDetector.PKG_FF_MAX)
+                    } catch (_: Exception) { null }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                if (gameDrawable != null) {
+                    Image(
+                        bitmap = gameDrawable.toBitmap(width = 48, height = 48).asImageBitmap(),
+                        contentDescription = "Game Icon",
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.logo_crackmaster),
+                        contentDescription = "App Logo",
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                    )
+                }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        GameChipBadge(label = state.gameInfo.modeBadge)
-                        if (state.gameInfo.architecture.isNotBlank()) {
-                            GameChipBadge(label = state.gameInfo.architecture)
-                        }
-                    }
+                Spacer(modifier = Modifier.width(12.dp))
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Free Fire",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = if (state.gameInfo.isInstalled)
+                            "Version: ${state.gameInfo.versionName}"
+                        else "Version: -",
+                        fontSize = 12.sp,
+                        color = TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        GameChipBadge(label = state.gameInfo.modeBadge.ifBlank { "EXTERNAL" })
+                        GameChipBadge(label = state.gameInfo.architecture.ifBlank { "ARM64-V8A" })
                         Text(
-                            text = "•",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Black,
-                            color = if (state.gameInfo.isInstalled) NeonGreen else TextMuted
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (state.gameInfo.isInstalled) "INSTALLED" else "NOT INSTALLED",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (state.gameInfo.isInstalled) NeonGreen else TextMuted
+                            text = if (state.gameInfo.isInstalled) "• INSTALLED" else "• NOT INSTALLED",
+                            fontSize = 10.sp,
+                            color = if (state.gameInfo.isInstalled) NeonGreen else TextMuted,
+                            modifier = Modifier.align(Alignment.CenterVertically)
                         )
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-        // 3. SYSTEM INFO
+        // SYSTEM INFO
         Text(
             text = "SYSTEM INFO",
             fontSize = 12.sp,
@@ -243,33 +202,27 @@ fun DashboardScreen(
             color = NeonGreen,
             letterSpacing = 1.sp
         )
-
         Spacer(modifier = Modifier.height(8.dp))
-
-        APatchCard(
-            modifier = Modifier.fillMaxWidth(),
-            containerColor = CardBackground,
-            cornerRadius = 20.dp
-        ) {
+        APatchCard(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 SystemInfoRow(
                     label = "Root Access",
-                    value = state.systemInfo.rootStatusText.ifBlank { "-" },
+                    value = state.systemInfo.rootStatusText,
                     valueColor = if (state.systemInfo.isRootGranted) NeonGreen else ErrorRed
                 )
                 SystemInfoRow(
                     label = "Android",
-                    value = state.systemInfo.androidVersion.ifBlank { "-" },
+                    value = state.systemInfo.androidVersion,
                     valueColor = NeonGreen
                 )
                 SystemInfoRow(
                     label = "Device Name",
-                    value = state.systemInfo.deviceName.ifBlank { "-" },
+                    value = state.systemInfo.deviceName,
                     valueColor = NeonGreen
                 )
             }
@@ -277,84 +230,7 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 4. SELECT MODE
-        Text(
-            text = "SELECT MODE",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = NeonGreen,
-            letterSpacing = 1.sp
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Box(modifier = Modifier.fillMaxWidth()) {
-            APatchCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { modeDropdownExpanded = true },
-                border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.5f)),
-                containerColor = CardBackground,
-                cornerRadius = 14.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = state.selectedMode,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = NeonGreen
-                    )
-                    Icon(
-                        imageVector = Icons.Filled.ArrowDropDown,
-                        contentDescription = "Select Mode",
-                        tint = NeonGreen
-                    )
-                }
-            }
-
-            DropdownMenu(
-                expanded = modeDropdownExpanded,
-                onDismissRequest = { modeDropdownExpanded = false },
-                modifier = Modifier.background(Color(0xFF14171C))
-            ) {
-                state.availableModes.forEach { mode ->
-                    DropdownMenuItem(
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (mode == state.selectedMode) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Check,
-                                        contentDescription = null,
-                                        tint = NeonGreen,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                }
-                                Text(
-                                    text = mode,
-                                    color = if (mode == state.selectedMode) NeonGreen else TextPrimary,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        },
-                        onClick = {
-                            viewModel.onSelectMode(mode)
-                            modeDropdownExpanded = false
-                        }
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // 5. ACTIONS: START / STOP
+        // ACTIONS — side-by-side START / STOP
         Text(
             text = "ACTIONS",
             fontSize = 12.sp,
@@ -362,7 +238,6 @@ fun DashboardScreen(
             color = NeonGreen,
             letterSpacing = 1.sp
         )
-
         Spacer(modifier = Modifier.height(8.dp))
 
         if (state.isLaunching) {
@@ -379,37 +254,74 @@ fun DashboardScreen(
                         color = NeonGreen,
                         trackColor = Color(0xFF262C36)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
                 } else {
                     CircularProgressIndicator(
                         color = NeonGreen,
                         modifier = Modifier.size(36.dp)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
-
-                Text(
-                    text = state.launchStatusMessage ?: "Starting...",
-                    fontSize = 13.sp,
-                    color = NeonGreen
-                )
             }
         } else {
-            APatchPillButton(
-                text = if (state.isEngineRunning) "STOP" else "START",
-                onClick = { viewModel.toggleEngine() },
-                containerColor = if (state.isEngineRunning) ErrorRed else NeonGreen,
-                contentColor = if (state.isEngineRunning) TextPrimary else ActivePillText
-            )
-        }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // START card
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .clickable(enabled = !state.isEngineRunning) {
+                            viewModel.toggleEngine()
+                        },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (!state.isEngineRunning) NeonGreen else Color(0xFF1A2B1A)
+                    )
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "START",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (!state.isEngineRunning) Color(0xFF000000) else NeonGreen.copy(alpha = 0.4f),
+                            textAlign = TextAlign.Center,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                }
 
-        if (!state.launchStatusMessage.isNullOrBlank() && !state.isLaunching) {
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = state.launchStatusMessage!!,
-                fontSize = 12.sp,
-                color = if (state.isEngineRunning) NeonGreen else ErrorRed
-            )
+                // STOP card
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .clickable(enabled = state.isEngineRunning) {
+                            viewModel.toggleEngine()
+                        },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (state.isEngineRunning) ErrorRed else Color(0xFF2B1A1A)
+                    )
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "STOP",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (state.isEngineRunning) TextPrimary else ErrorRed.copy(alpha = 0.4f),
+                            textAlign = TextAlign.Center,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(30.dp))
