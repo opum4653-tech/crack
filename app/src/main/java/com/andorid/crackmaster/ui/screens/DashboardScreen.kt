@@ -42,10 +42,10 @@ import androidx.core.graphics.drawable.toBitmap
 import com.andorid.crackmaster.R
 import com.andorid.crackmaster.data.SystemDetector
 import com.andorid.crackmaster.ui.components.APatchCard
+import com.andorid.crackmaster.ui.dialogs.ApatchLicenseKeyDialog
 import com.andorid.crackmaster.ui.theme.ActivePillBg
 import com.andorid.crackmaster.ui.theme.ActivePillText
 import com.andorid.crackmaster.ui.theme.BackgroundDark
-import com.andorid.crackmaster.ui.theme.CardBackground
 import com.andorid.crackmaster.ui.theme.ErrorRed
 import com.andorid.crackmaster.ui.theme.NeonGreen
 import com.andorid.crackmaster.ui.theme.TextMuted
@@ -60,6 +60,18 @@ fun DashboardScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+
+    // License Authentication Dialog (like NinMods)
+    if (state.showLicenseDialog) {
+        ApatchLicenseKeyDialog(
+            initialKey = state.licenseKey,
+            onDismiss = { viewModel.dismissLicenseDialog() },
+            onSubmitKey = { key -> viewModel.submitLicenseKeyAndStart(key) },
+            isSubmitting = state.isAuthenticating,
+            errorMessage = state.authError,
+            isVerified = state.isVerified
+        )
+    }
 
     Column(
         modifier = modifier
@@ -102,7 +114,7 @@ fun DashboardScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "ACTIVE",
+                    text = if (state.isEngineRunning) "RUNNING" else "ACTIVE",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Black,
                     color = ActivePillText
@@ -271,8 +283,8 @@ fun DashboardScreen(
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp)
-                        .clickable(enabled = !state.isEngineRunning) {
-                            viewModel.toggleEngine()
+                        .clickable(enabled = !state.isEngineRunning && !state.isLaunching) {
+                            viewModel.onStartClicked()
                         },
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(
@@ -299,8 +311,8 @@ fun DashboardScreen(
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp)
-                        .clickable(enabled = state.isEngineRunning) {
-                            viewModel.toggleEngine()
+                        .clickable(enabled = state.isEngineRunning && !state.isLaunching) {
+                            viewModel.onStopClicked()
                         },
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(

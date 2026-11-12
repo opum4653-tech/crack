@@ -19,7 +19,8 @@ data class CrackMasterUiState(
     val licenseKey: String = "",
     val isAuthenticating: Boolean = false,
     val authError: String? = null,
-    val isLoggedIn: Boolean = false,
+    val isVerified: Boolean = false,
+    val showLicenseDialog: Boolean = false,
     val expiredDate: String = "",
     val gameInfo: GameInfo = GameInfo(
         title = "",
@@ -50,7 +51,6 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
     private val _uiState = MutableStateFlow(
         CrackMasterUiState(
             licenseKey = sessionManager.licenseKey,
-            isLoggedIn = sessionManager.isLoggedIn,
             expiredDate = sessionManager.expiredDate
         )
     )
@@ -58,7 +58,6 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
 
     init {
         refreshSystemAndGameData()
-        checkExistingSession()
     }
 
     fun onLicenseKeyChanged(newKey: String) {
@@ -66,6 +65,23 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
             licenseKey = newKey,
             authError = null
         )
+    }
+
+    fun openLicenseDialog() {
+        val saved = sessionManager.licenseKey
+        _uiState.value = _uiState.value.copy(
+            licenseKey = if (saved.isNotBlank()) saved else _uiState.value.licenseKey,
+            showLicenseDialog = true,
+            authError = null,
+            isAuthenticating = false,
+            isVerified = false
+        )
+    }
+
+    fun dismissLicenseDialog() {
+        if (!_uiState.value.isAuthenticating) {
+            _uiState.value = _uiState.value.copy(showLicenseDialog = false)
+        }
     }
 
     fun refreshSystemAndGameData() {
@@ -82,107 +98,70 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    private fun checkExistingSession() {
-        val savedKey = sessionManager.licenseKey
-        if (savedKey.isNotBlank() && sessionManager.isLoggedIn) {
-            viewModelScope.launch {
-                val hwid = sessionManager.getHardwareId()
-                val result = CrackMasterApiClient.verifyLicense(savedKey, hwid)
-                if (result.isSuccess && result.getOrNull()?.status == true) {
-                    val resp = result.getOrNull()
-                    sessionManager.expiredDate = resp?.data?.expired_date ?: sessionManager.expiredDate
-                    _uiState.value = _uiState.value.copy(
-                        isLoggedIn = true,
-                        expiredDate = sessionManager.expiredDate
-                    )
-                } else {
-                    sessionManager.isLoggedIn = false
-                    _uiState.value = _uiState.value.copy(
-                        isLoggedIn = false,
-                        authError = result.getOrNull()?.reason ?: "License expired or revoked"
-                    )
-                }
-            }
+    fun onStartClicked() {
+        if (_uiState.value.isEngineRunning) return
+        val savedKey = sessionManager.licenseKey.ifBlank { _uiState.value.licenseKey.trim() }
+        if (savedKey.isBlank()) {
+            openLicenseDialog()
+        } else {
+            // Already has key saved, but user wants NinMods-style check or confirmation:
+            // Open license dialog prefilled with saved key so user can submit / start directly
+            openLicenseDialog()
         }
     }
 
-    fun authenticateInitial(onSuccess: () -> Unit = {}) {
-        val key = _uiState.value.licenseKey.trim()
+    fun onStopClicked() {
+        viewModelScope.launch {
+            ShellExecutor.stopDaemon()
+            _uiState.value = _uiState.value.copy(
+                isEngineRunning = false,
+                launchStatusMessage = "Stopped"
+            )
+        }
+    }
+
+    fun submitLicenseKeyAndStart(keyInput: String) {
+        val key = keyInput.trim()
         if (key.isBlank()) {
             _uiState.value = _uiState.value.copy(authError = "License key is required!")
             return
         }
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isAuthenticating = true, authError = null)
-            val hwid = sessionManager.getHardwareId()
-            val result = CrackMasterApiClient.verifyLicense(key, hwid)
-
-            if (result.isSuccess) {
-                val resp = result.getOrNull()
-                if (resp != null && resp.status) {
-                    sessionManager.licenseKey = key
-                    sessionManager.isLoggedIn = true
-                    sessionManager.token = resp.data?.token.orEmpty()
-                    sessionManager.expiredDate = resp.data?.expired_date.orEmpty()
-
-                    _uiState.value = _uiState.value.copy(
-                        isAuthenticating = false,
-                        isLoggedIn = true,
-                        expiredDate = sessionManager.expiredDate,
-                        authError = null
-                    )
-                    onSuccess()
-                } else {
-                    _uiState.value = _uiState.value.copy(
-                        isAuthenticating = false,
-                        authError = resp?.reason ?: "Invalid license key!"
-                    )
-                }
-            } else {
-                _uiState.value = _uiState.value.copy(
-                    isAuthenticating = false,
-                    authError = result.exceptionOrNull()?.message ?: "Server connection failed!"
-                )
-            }
-        }
-    }
-
-    fun toggleEngine() {
-        if (_uiState.value.isEngineRunning) {
-            viewModelScope.launch {
-                ShellExecutor.stopDaemon()
-                _uiState.value = _uiState.value.copy(
-                    isEngineRunning = false,
-                    launchStatusMessage = "Stopped"
-                )
-            }
-            return
-        }
-
-        viewModelScope.launch {
-            val key = sessionManager.licenseKey.ifBlank { _uiState.value.licenseKey.trim() }
-            val hwid = sessionManager.getHardwareId()
-
             _uiState.value = _uiState.value.copy(
-                isLaunching = true,
-                launchStatusMessage = "Checking key...",
-                downloadProgress = 0
+                isAuthenticating = true,
+                authError = null
             )
+            val hwid = sessionManager.getHardwareId()
 
-            // Step 1: 2nd Verification against crackmaster.shop
+            // 1. Verify license with crackmaster.shop
             val verifyRes = CrackMasterApiClient.verifyLicense(key, hwid)
             if (verifyRes.isFailure || verifyRes.getOrNull()?.status != true) {
                 val err = verifyRes.getOrNull()?.reason ?: "License verification failed"
                 _uiState.value = _uiState.value.copy(
-                    isLaunching = false,
-                    launchStatusMessage = err
+                    isAuthenticating = false,
+                    authError = err
                 )
                 return@launch
             }
 
-            // Step 2: Download binary from ninmods.smmtor.com if needed
-            _uiState.value = _uiState.value.copy(launchStatusMessage = "Starting...")
+            val resp = verifyRes.getOrNull()
+            sessionManager.licenseKey = key
+            sessionManager.isLoggedIn = true
+            sessionManager.token = resp?.data?.token.orEmpty()
+            sessionManager.expiredDate = resp?.data?.expired_date.orEmpty()
+
+            _uiState.value = _uiState.value.copy(
+                isAuthenticating = false,
+                isVerified = true,
+                expiredDate = sessionManager.expiredDate,
+                showLicenseDialog = false,
+                isLaunching = true,
+                launchStatusMessage = "Starting...",
+                downloadProgress = 0
+            )
+
+            // 2. Download binary if needed
             val context = getApplication<Application>()
             val downloadRes = BinaryDownloader.downloadBinaryIfNeeded(context) { p ->
                 _uiState.value = _uiState.value.copy(
@@ -202,10 +181,8 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
 
             val binaryFile = downloadRes.getOrNull()!!
 
-            // Step 3: Spawn root daemon
-            _uiState.value = _uiState.value.copy(launchStatusMessage = "Starting...")
+            // 3. Spawn root daemon into memory
             val startRes = ShellExecutor.startDaemon(binaryFile.absolutePath, key)
-
             if (startRes.isSuccess) {
                 _uiState.value = _uiState.value.copy(
                     isLaunching = false,

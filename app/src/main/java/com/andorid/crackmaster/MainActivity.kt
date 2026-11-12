@@ -6,12 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.andorid.crackmaster.ui.screens.DashboardScreen
-import com.andorid.crackmaster.ui.screens.LoginScreen
 import com.andorid.crackmaster.ui.theme.BackgroundDark
 import com.andorid.crackmaster.ui.theme.CrackMasterTheme
 import com.andorid.crackmaster.ui.viewmodel.CrackMasterViewModel
@@ -24,7 +20,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             CrackMasterTheme {
-                MainContent(viewModel = viewModel)
+                DashboardScreen(
+                    viewModel = viewModel,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(BackgroundDark)
+                )
             }
         }
     }
@@ -32,24 +33,5 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshSystemAndGameData()
-    }
-}
-
-@Composable
-fun MainContent(viewModel: CrackMasterViewModel) {
-    val state by viewModel.uiState.collectAsState()
-
-    if (!state.isLoggedIn) {
-        LoginScreen(
-            viewModel = viewModel,
-            onLoginSuccess = {}
-        )
-    } else {
-        DashboardScreen(
-            viewModel = viewModel,
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BackgroundDark)
-        )
     }
 }
