@@ -13,9 +13,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -39,6 +43,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,11 +76,20 @@ fun ApatchLicenseKeyDialog(
     onSubmitKey: (String) -> Unit,
     isSubmitting: Boolean = false,
     errorMessage: String? = null,
-    isVerified: Boolean = false
+    isVerified: Boolean = false,
+    terminalLogs: List<String> = emptyList()
 ) {
     val context = LocalContext.current
     var keyText by remember(initialKey) { mutableStateOf(initialKey) }
     var isKeyVisible by remember { mutableStateOf(false) }
+
+    // Auto-scroll terminal to bottom when logs update
+    val listState = rememberLazyListState()
+    LaunchedEffect(terminalLogs.size) {
+        if (terminalLogs.isNotEmpty()) {
+            listState.animateScrollToItem(terminalLogs.size - 1)
+        }
+    }
 
     BasicAlertDialog(
         onDismissRequest = { if (!isSubmitting) onDismiss() },
@@ -97,7 +111,7 @@ fun ApatchLicenseKeyDialog(
                     .padding(22.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Circular icon
+                // ── Status icon ──────────────────────────────────────────────
                 Surface(
                     shape = CircleShape,
                     color = if (isVerified) Color(0xFF1B3828) else Color(0xFF16251C),
@@ -126,15 +140,52 @@ fun ApatchLicenseKeyDialog(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = if (isVerified)
-                        "License verified. Loading binary into memory..."
-                    else
-                        "Enter your CrackMaster license key to run binary into memory.",
+                    text = when {
+                        isVerified   -> "Authorized. Loading binary into memory..."
+                        isSubmitting -> "Verifying with server..."
+                        else         -> "Enter your CrackMaster license key to run binary into memory."
+                    },
                     fontSize = 12.sp,
                     color = TextSecondary,
                     textAlign = TextAlign.Center
                 )
 
+                // ── Terminal log view ───────────────────────────────────────
+                AnimatedVisibility(visible = terminalLogs.isNotEmpty()) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 80.dp, max = 160.dp)
+                                .background(
+                                    Color(0xFF0D0F12),
+                                    RoundedCornerShape(10.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 8.dp)
+                        ) {
+                            LazyColumn(state = listState) {
+                                items(terminalLogs) { line ->
+                                    val lineColor = when {
+                                        line.startsWith("[-]") -> ErrorRed
+                                        line.startsWith("[+]") -> NeonGreen
+                                        line.startsWith("[?]") -> Color(0xFFFFD54F)
+                                        else                   -> TextSecondary
+                                    }
+                                    Text(
+                                        text = line,
+                                        fontSize = 10.sp,
+                                        color = lineColor,
+                                        fontFamily = FontFamily.Monospace,
+                                        lineHeight = 15.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Key input (hidden once verified) ───────────────────────
                 if (!isVerified) {
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -144,13 +195,14 @@ fun ApatchLicenseKeyDialog(
                         label = { Text("License Key", fontSize = 12.sp, color = NeonGreen) },
                         placeholder = {
                             Text(
-                                "FF-XXXX-XXXX-XXXX",
+                                "CM-XXXX-XXXX-XXXX",
                                 fontSize = 12.sp,
                                 color = TextMuted,
                                 fontFamily = FontFamily.Monospace
                             )
                         },
                         singleLine = true,
+                        enabled = !isSubmitting,
                         visualTransformation = if (isKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         trailingIcon = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -174,7 +226,7 @@ fun ApatchLicenseKeyDialog(
                                 IconButton(onClick = { isKeyVisible = !isKeyVisible }) {
                                     Icon(
                                         imageVector = if (isKeyVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                        contentDescription = if (isKeyVisible) "Hide Key" else "Show Key",
+                                        contentDescription = null,
                                         tint = TextSecondary,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -184,13 +236,16 @@ fun ApatchLicenseKeyDialog(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary,
-                            focusedBorderColor = NeonGreen,
-                            unfocusedBorderColor = NeonGreen.copy(alpha = 0.4f),
-                            cursorColor = NeonGreen,
-                            focusedContainerColor = Color(0xFF0C0F14),
-                            unfocusedContainerColor = Color(0xFF0C0F14)
+                            focusedTextColor      = TextPrimary,
+                            unfocusedTextColor    = TextPrimary,
+                            focusedBorderColor    = NeonGreen,
+                            unfocusedBorderColor  = NeonGreen.copy(alpha = 0.4f),
+                            cursorColor           = NeonGreen,
+                            focusedContainerColor   = Color(0xFF0C0F14),
+                            unfocusedContainerColor = Color(0xFF0C0F14),
+                            disabledTextColor     = TextMuted,
+                            disabledBorderColor   = NeonGreen.copy(alpha = 0.2f),
+                            disabledContainerColor  = Color(0xFF0C0F14)
                         ),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(
@@ -215,56 +270,45 @@ fun ApatchLicenseKeyDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
+                // ── Buttons ─────────────────────────────────────────────────
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
-                        enabled = !isSubmitting,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp),
+                        enabled = !isSubmitting && !isVerified,
+                        modifier = Modifier.weight(1f).height(44.dp),
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, Color(0xFF2E3440))
                     ) {
-                        Text(
-                            text = "Cancel",
-                            fontSize = 13.sp,
-                            color = TextSecondary
-                        )
+                        Text(text = "Cancel", fontSize = 13.sp, color = TextSecondary)
                     }
 
                     Button(
                         onClick = {
-                            if (keyText.trim().isNotEmpty()) {
+                            if (!isVerified && keyText.trim().isNotEmpty()) {
                                 onSubmitKey(keyText.trim())
                             }
                         },
-                        enabled = !isSubmitting && keyText.trim().isNotEmpty(),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp),
+                        enabled = !isSubmitting && !isVerified && keyText.trim().isNotEmpty(),
+                        modifier = Modifier.weight(1f).height(44.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = NeonGreen,
-                            contentColor = ActivePillText,
-                            disabledContainerColor = NeonGreen.copy(alpha = 0.4f),
-                            disabledContentColor = ActivePillText.copy(alpha = 0.4f)
+                            containerColor          = NeonGreen,
+                            contentColor            = ActivePillText,
+                            disabledContainerColor  = NeonGreen.copy(alpha = 0.3f),
+                            disabledContentColor    = ActivePillText.copy(alpha = 0.4f)
                         )
                     ) {
-                        if (isSubmitting) {
+                        if (isSubmitting || isVerified) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = ActivePillText,
+                                modifier    = Modifier.size(18.dp),
+                                color       = ActivePillText,
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text(
-                                text = "START",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Text(text = "START", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

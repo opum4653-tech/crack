@@ -61,15 +61,16 @@ fun DashboardScreen(
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    // License Authentication Dialog (like NinMods)
+    // License dialog — key piped via stdin to binary (InteractiveProcessBridge)
     if (state.showLicenseDialog) {
         ApatchLicenseKeyDialog(
-            initialKey = state.licenseKey,
-            onDismiss = { viewModel.dismissLicenseDialog() },
-            onSubmitKey = { key -> viewModel.submitLicenseKeyAndStart(key) },
+            initialKey   = state.licenseKey,
+            onDismiss    = { viewModel.dismissLicenseDialog() },
+            onSubmitKey  = { key -> viewModel.submitLicenseKey(key) },
             isSubmitting = state.isAuthenticating,
             errorMessage = state.authError,
-            isVerified = state.isVerified
+            isVerified   = state.isVerified,
+            terminalLogs = state.terminalLogs
         )
     }
 

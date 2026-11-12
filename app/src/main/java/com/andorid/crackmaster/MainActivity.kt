@@ -6,8 +6,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.andorid.crackmaster.ui.screens.DashboardScreen
+import com.andorid.crackmaster.ui.screens.LoginScreen
 import com.andorid.crackmaster.ui.theme.BackgroundDark
 import com.andorid.crackmaster.ui.theme.CrackMasterTheme
 import com.andorid.crackmaster.ui.viewmodel.CrackMasterViewModel
@@ -20,12 +23,25 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             CrackMasterTheme {
-                DashboardScreen(
-                    viewModel = viewModel,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(BackgroundDark)
-                )
+                val state by viewModel.uiState.collectAsState()
+
+                if (!state.isLoggedIn) {
+                    // Stage 1 — License key gate before dashboard
+                    LoginScreen(
+                        viewModel = viewModel,
+                        modifier  = Modifier
+                            .fillMaxSize()
+                            .background(BackgroundDark)
+                    )
+                } else {
+                    // Stage 2 — Dashboard (START triggers InteractiveProcessBridge)
+                    DashboardScreen(
+                        viewModel = viewModel,
+                        modifier  = Modifier
+                            .fillMaxSize()
+                            .background(BackgroundDark)
+                    )
+                }
             }
         }
     }
