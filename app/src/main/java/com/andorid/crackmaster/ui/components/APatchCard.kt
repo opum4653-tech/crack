@@ -3,10 +3,8 @@ package com.andorid.crackmaster.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CardColors
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,10 +20,10 @@ fun APatchCard(
     cornerRadius: Dp = 20.dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    ElevatedCard(
+    Card(
         modifier = modifier,
         shape = RoundedCornerShape(cornerRadius),
-        colors = CardDefaults.elevatedCardColors(
+        colors = CardDefaults.cardColors(
             containerColor = containerColor
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
