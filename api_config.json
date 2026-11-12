@@ -1,0 +1,89 @@
+{
+  "name": "CrackMaster License API",
+  "base_url": "https://crackmaster.shop",
+  "note": "Replace base_url / path if your hosting folder is different. All responses are JSON.",
+
+  "license": {
+    "description": "App login / license verification. Call this every time the app starts (and whenever you want to re-check).",
+    "endpoint": "/api/verify.php",
+    "method": "POST (GET also works)",
+    "content_type": "application/x-www-form-urlencoded",
+    "request": {
+      "user_key": { "required": true,  "type": "string", "alias": ["license_key", "key"], "example": "FF-A1B2C3-D4E5F6", "info": "License key typed by the user" },
+      "serial":   { "required": true,  "type": "string", "alias": ["device_id", "hwid"],  "example": "ab12cd34ef56", "info": "Unique device id (HWID) of the phone" },
+      "game":     { "required": false, "type": "string", "values": ["FreeFire", "Pubg"],   "example": "FreeFire", "info": "Which game this app is for. If sent, a key of the other game is rejected. Strongly recommended." }
+    },
+    "response_success": {
+      "status": true,
+      "data": {
+        "modname": "CrackMaster",
+        "mod_status": "Safe",
+        "credit": "CrackMaster",
+        "game": "FreeFire",
+        "expired_date": "2026-12-01 18:30:00",
+        "real": "FF-A1B2C3-D4E5F6",
+        "token": "md5(user_key + serial)"
+      }
+    },
+    "response_error": {
+      "status": false,
+      "reason": "human readable message"
+    },
+    "error_reasons": [
+      "License Key and Hardware ID are required!",
+      "Invalid license key!",
+      "This license key has been banned!",
+      "This key is for Pubg, not FreeFire!",
+      "This license key is temporarily paused!",
+      "Device limit reached! Max N device(s) allowed for this key.",
+      "License key has expired!"
+    ],
+    "rules": [
+      "App must treat status=true as logged in, anything else as failed and show 'reason'.",
+      "Expiry clock starts at the FIRST successful login (expired_date is then fixed).",
+      "A key is locked to the device(s) of its first login. Max devices is set per key (0 = unlimited).",
+      "token = md5(user_key . serial) (lowercase hex). The app may re-compute it to validate the response.",
+      "Time format of expired_date: Y-m-d H:i:s, timezone Asia/Dhaka (UTC+6)."
+    ]
+  },
+
+  "reset_device": {
+    "description": "Remove the device lock of a key so it can be used on a new phone. No API key needed. Daily limit per key is set by the admin.",
+    "endpoint": "/reseller_api.php?action=reset_key",
+    "method": "POST (GET also works)",
+    "request": { "license_key": { "required": true, "type": "string", "example": "FF-A1B2C3-D4E5F6" } },
+    "response_success": {
+      "status": "success",
+      "message": "Device HWID reset successfully!",
+      "data": { "license_key": "FF-A1B2C3-D4E5F6", "game": "FreeFire", "resets_used_today": 1, "resets_left_today": 2, "daily_limit": 3 }
+    },
+    "response_error": { "status": "error", "code": "DAILY_LIMIT_REACHED", "message": "..." },
+    "error_codes": {
+      "MISSING_PARAMETER": 400, "KEY_NOT_FOUND": 404, "NO_DEVICE_BOUND": 409,
+      "DAILY_LIMIT_REACHED": 429, "RATE_LIMITED": 429, "ACCOUNT_BANNED": 403, "API_DISABLED": 503
+    }
+  },
+
+  "key_info": {
+    "description": "Read the state of a key (optional, for showing expiry / reset info in the app).",
+    "endpoint": "/reseller_api.php?action=key_info",
+    "method": "POST (GET also works)",
+    "request": { "license_key": { "required": true, "type": "string" } },
+    "response_success": {
+      "status": "success",
+      "data": { "license_key": "FF-A1B2C3-D4E5F6", "game": "FreeFire", "duration": "7 days", "state": "active", "device_bound": true, "expires_at": "2026-12-01 18:30:00", "resets_used_today": 1, "resets_left_today": 2, "daily_limit": 3 }
+    },
+    "state_values": ["unused", "active", "expired", "paused", "banned"]
+  },
+
+  "feedback": {
+    "available": false,
+    "note": "There is no feedback endpoint on the server yet. Tell us what the app needs (fields to send, where to store/notify) and it can be added."
+  },
+
+  "auth_methods": {
+    "license_login": "none (the license key itself is the credential)",
+    "reset_device":  "none (license key only)",
+    "balance":       "reseller API key in header X-API-Key (only for reseller tools, not needed by the app)"
+  }
+}

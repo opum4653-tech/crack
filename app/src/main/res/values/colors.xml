@@ -1,0 +1,9 @@
+<resources>
+    <color name="primary_neon_green">#00E676</color>
+    <color name="primary_variant_green">#10B981</color>
+    <color name="dark_bg">#0B0E11</color>
+    <color name="dark_surface">#14171C</color>
+    <color name="dark_card">#1B1F26</color>
+    <color name="text_white">#FFFFFF</color>
+    <color name="text_dim">#8E9AA8</color>
+</resources>
