@@ -56,10 +56,13 @@ jobs:
       - name: Print Build Error Details on Failure
         if: failure()
         run: |
-          echo "=== BUILD FAILURE LOG (LAST 40 LINES) ==="
-          tail -n 40 build.log
-          tail -n 25 build.log | while IFS= read -r errline; do
-            echo "::error title=Gradle Error::$errline"
+          echo "=== BUILD FAILURE LOG ==="
+          tail -n 80 build.log
+          grep -E "Caused by:|What went wrong:|e: " build.log -A 4 | head -n 35 | while IFS= read -r errline; do
+            echo "::error title=Gradle Root Cause::$errline"
+          done
+          tail -n 30 build.log | while IFS= read -r errline; do
+            echo "::error title=Stack Detail::$errline"
           done
 
       - name: Check Build Status
