@@ -22,20 +22,20 @@ data class CrackMasterUiState(
     val isLoggedIn: Boolean = false,
     val expiredDate: String = "",
     val gameInfo: GameInfo = GameInfo(
-        title = "Detecting...",
+        title = "",
         packageName = SystemDetector.PKG_FF_NORMAL,
-        versionName = "Checking...",
+        versionName = "",
         versionCode = 0L,
         isInstalled = false,
-        architecture = "ARM64-V8A",
+        architecture = "",
         modeBadge = "EXTERNAL"
     ),
     val systemInfo: SystemStatusInfo = SystemStatusInfo(
         isRootGranted = false,
-        rootStatusText = "Checking...",
-        androidVersion = "Checking...",
-        deviceName = "Detecting...",
-        architecture = "ARM64-V8A"
+        rootStatusText = "",
+        androidVersion = "",
+        deviceName = "",
+        architecture = ""
     ),
     val selectedMode: String = "Bing Driver (FT/VIP & RT Dual)",
     val availableModes: List<String> = listOf(
@@ -43,7 +43,7 @@ data class CrackMasterUiState(
         "Direct Memory Mode",
         "Virtual Userland Engine"
     ),
-    val isCheatRunning: Boolean = false,
+    val isEngineRunning: Boolean = false,
     val isLaunching: Boolean = false,
     val launchStatusMessage: String? = null,
     val downloadProgress: Int = 0
@@ -89,7 +89,7 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
             _uiState.value = _uiState.value.copy(
                 gameInfo = gInfo,
                 systemInfo = sInfo,
-                isCheatRunning = running
+                isEngineRunning = running
             )
         }
     }
@@ -160,12 +160,12 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun toggleCheatEngine() {
-        if (_uiState.value.isCheatRunning) {
+    fun toggleEngine() {
+        if (_uiState.value.isEngineRunning) {
             viewModelScope.launch {
                 ShellExecutor.stopDaemon()
                 _uiState.value = _uiState.value.copy(
-                    isCheatRunning = false,
+                    isEngineRunning = false,
                     launchStatusMessage = "Engine Stopped."
                 )
             }
@@ -178,7 +178,7 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
 
             _uiState.value = _uiState.value.copy(
                 isLaunching = true,
-                launchStatusMessage = "Verifying license for engine launch...",
+                launchStatusMessage = "Verifying license for launch...",
                 downloadProgress = 0
             )
 
@@ -221,13 +221,13 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
             if (startRes.isSuccess) {
                 _uiState.value = _uiState.value.copy(
                     isLaunching = false,
-                    isCheatRunning = true,
+                    isEngineRunning = true,
                     launchStatusMessage = "Engine Active in Memory!"
                 )
             } else {
                 _uiState.value = _uiState.value.copy(
                     isLaunching = false,
-                    isCheatRunning = false,
+                    isEngineRunning = false,
                     launchStatusMessage = "Root spawn failed: ${startRes.exceptionOrNull()?.message}"
                 )
             }

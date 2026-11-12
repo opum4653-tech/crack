@@ -168,18 +168,18 @@ fun DashboardScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = state.gameInfo.title,
+                            text = if (state.gameInfo.title.isNotBlank()) state.gameInfo.title else "Free Fire",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Version: ${state.gameInfo.versionName}",
+                            text = if (state.gameInfo.isInstalled) "Version: ${state.gameInfo.versionName}" else "Version: Not Installed",
                             fontSize = 12.sp,
                             color = TextSecondary
                         )
-                        if (state.gameInfo.isInstalled) {
+                        if (state.gameInfo.isInstalled && state.gameInfo.versionCode > 0) {
                             Text(
                                 text = "Code: ${state.gameInfo.versionCode}",
                                 fontSize = 12.sp,
@@ -191,7 +191,7 @@ fun DashboardScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Badges Row: [EXTERNAL] (Kernel removed as required by dj) & [Dynamic ABI] & • INSTALLED
+                // Badges Row: [EXTERNAL] & [Dynamic Device Architecture] & • INSTALLED
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -199,7 +199,9 @@ fun DashboardScreen(
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         GameChipBadge(label = state.gameInfo.modeBadge)
-                        GameChipBadge(label = state.gameInfo.architecture)
+                        if (state.gameInfo.architecture.isNotBlank()) {
+                            GameChipBadge(label = state.gameInfo.architecture)
+                        }
                     }
 
                     // Status: • INSTALLED / NOT INSTALLED
@@ -248,17 +250,17 @@ fun DashboardScreen(
             ) {
                 SystemInfoRow(
                     label = "Root Access",
-                    value = state.systemInfo.rootStatusText,
+                    value = state.systemInfo.rootStatusText.ifBlank { "Detecting..." },
                     valueColor = if (state.systemInfo.isRootGranted) NeonGreen else ErrorRed
                 )
                 SystemInfoRow(
                     label = "Android",
-                    value = state.systemInfo.androidVersion,
+                    value = state.systemInfo.androidVersion.ifBlank { "Detecting..." },
                     valueColor = NeonGreen
                 )
                 SystemInfoRow(
                     label = "Device Name",
-                    value = state.systemInfo.deviceName,
+                    value = state.systemInfo.deviceName.ifBlank { "Detecting..." },
                     valueColor = NeonGreen
                 )
             }
@@ -343,7 +345,7 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 5. ACTIONS Section (START CHEAT / STOP CHEAT)
+        // 5. ACTIONS Section (START / STOP)
         Text(
             text = "ACTIONS",
             fontSize = 12.sp,
@@ -378,17 +380,18 @@ fun DashboardScreen(
                 }
 
                 Text(
-                    text = state.launchStatusMessage ?: "Running binary into memory...",
+                    text = state.launchStatusMessage ?: "Executing into memory...",
                     fontSize = 13.sp,
                     color = NeonGreen
                 )
             }
         } else {
+            // Strictly START / STOP button
             APatchPillButton(
-                text = if (state.isCheatRunning) "STOP CHEAT" else "START CHEAT",
-                onClick = { viewModel.toggleCheatEngine() },
-                containerColor = if (state.isCheatRunning) ErrorRed else NeonGreen,
-                contentColor = if (state.isCheatRunning) TextPrimary else ActivePillText
+                text = if (state.isEngineRunning) "STOP" else "START",
+                onClick = { viewModel.toggleEngine() },
+                containerColor = if (state.isEngineRunning) ErrorRed else NeonGreen,
+                contentColor = if (state.isEngineRunning) TextPrimary else ActivePillText
             )
         }
 
@@ -397,7 +400,7 @@ fun DashboardScreen(
             Text(
                 text = state.launchStatusMessage!!,
                 fontSize = 12.sp,
-                color = if (state.isCheatRunning) NeonGreen else ErrorRed
+                color = if (state.isEngineRunning) NeonGreen else ErrorRed
             )
         }
 
