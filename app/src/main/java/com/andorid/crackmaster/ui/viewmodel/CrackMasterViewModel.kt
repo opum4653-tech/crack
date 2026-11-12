@@ -140,19 +140,24 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
     fun onStartClicked() {
         if (_uiState.value.isEngineRunning || _uiState.value.isLaunching) return
 
-        // Clear logs, open dialog, start bridge
+        val savedKey = sessionManager.licenseKey
+
+        // Open the dialog IMMEDIATELY with the saved key pre-filled, before bridge starts.
+        // Terminal log stream will populate as binary emits lines.
         _uiState.value = _uiState.value.copy(
-            terminalLogs  = emptyList(),
-            isVerified    = false,
-            authError     = null,
-            isLaunching   = true,
-            downloadProgress = 0,
+            terminalLogs        = emptyList(),
+            isVerified          = false,
+            authError           = null,
+            isAuthenticating    = false,
+            showLicenseDialog   = true,       // open dialog right away
+            isLaunching         = true,
+            downloadProgress    = 0,
+            licenseKey          = savedKey,   // pre-fill with saved key
             launchStatusMessage = "Preparing..."
         )
 
         viewModelScope.launch {
-            val hwid      = sessionManager.getHardwareId()
-            val savedKey  = sessionManager.licenseKey
+            val hwid = sessionManager.getHardwareId()
 
             val result = processBridge.start(
                 hwid       = hwid,
@@ -169,6 +174,7 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
 
             if (result.isFailure) {
                 _uiState.value = _uiState.value.copy(
+                    showLicenseDialog   = false,
                     launchStatusMessage = result.exceptionOrNull()?.message ?: "Launch failed"
                 )
                 return@launch
@@ -233,12 +239,13 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
             }
         }
 
-        // "[?] Enter API Access Key:" signal → open dialog
+        // "[?] Enter API Access Key:" signal → ensure dialog is open and ready for input
         viewModelScope.launch {
             processBridge.licensePromptEvent.collect {
                 _uiState.value = _uiState.value.copy(
                     showLicenseDialog = true,
-                    isAuthenticating  = false
+                    isAuthenticating  = false,
+                    authError         = null
                 )
             }
         }

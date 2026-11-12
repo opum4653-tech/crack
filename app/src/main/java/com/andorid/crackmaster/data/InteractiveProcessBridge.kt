@@ -76,12 +76,13 @@ class InteractiveProcessBridge(
 
         // 2. Spawn root process with stdin/stdout piped
         return@withContext try {
+            // Pass HWID and server URL env vars.
+            // Do NOT pass NIN_LICENSE_KEY — binary must always emit "[?] Enter API Access Key:"
+            // so the app can open the license dialog and show terminal logs.
+            // The saved key is pre-filled in the dialog's input field on the app side.
             val envBlock = buildString {
                 append("export CRACKMASTER_SERVER_URL='https://crackmaster.shop'\n")
                 append("export NIN_DEVICE_HWID='$hwid'\n")
-                if (savedKey.isNotBlank()) {
-                    append("export NIN_LICENSE_KEY='${savedKey.trim()}'\n")
-                }
             }
             val cmd = "${envBlock}exec '${binaryFile.absolutePath}'\n"
 
