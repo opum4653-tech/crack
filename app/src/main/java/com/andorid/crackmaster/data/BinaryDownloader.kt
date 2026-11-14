@@ -22,7 +22,49 @@ object BinaryDownloader {
         try {
             val binFile = getBinaryFile(context)
             if (binFile.exists()) binFile.delete()
+            val prefs = context.getSharedPreferences("crackmaster_bin_prefs", Context.MODE_PRIVATE)
+            prefs.edit().clear().apply()
         } catch (_: Exception) {}
+    }
+
+    private fun checkIsServerBinaryNewer(cachedLastModified: Long, cachedContentLength: Long): Boolean {
+        return try {
+            val candidateUrls = listOf(
+                "${ApiConfig.SMMTOR_BASE_URL}/${ApiConfig.BINARY_PATH}",
+                "${ApiConfig.SMMTOR_BASE_URL}/downloads/crack/gemini-cli.zip"
+            )
+            for (urlStr in candidateUrls) {
+                try {
+                    val url = URL(urlStr)
+                    val conn = (url.openConnection() as HttpURLConnection).apply {
+                        requestMethod = "HEAD"
+                        connectTimeout = 3500
+                        readTimeout = 3500
+                        instanceFollowRedirects = true
+                        setRequestProperty("User-Agent", "CrackMaster-Launcher/2.0")
+                    }
+                    if (conn.responseCode in 200..299) {
+                        val remoteMod = conn.lastModified
+                        val remoteLen = conn.contentLength.toLong()
+                        conn.disconnect()
+                        if (remoteMod > 0 && cachedLastModified > 0 && remoteMod > cachedLastModified) {
+                            return true
+                        }
+                        if (remoteLen > 0 && cachedContentLength > 0 && remoteLen != cachedContentLength) {
+                            return true
+                        }
+                        if (cachedLastModified == 0L || cachedContentLength == 0L) {
+                            return true
+                        }
+                        return false
+                    }
+                    conn.disconnect()
+                } catch (_: Exception) {}
+            }
+            false
+        } catch (_: Exception) {
+            false
+        }
     }
 
     suspend fun downloadBinaryIfNeeded(
@@ -31,10 +73,17 @@ object BinaryDownloader {
         onProgress: (Int) -> Unit = {}
     ): Result<File> = withContext(Dispatchers.IO) {
         val binFile = getBinaryFile(context)
+        val prefs = context.getSharedPreferences("crackmaster_bin_prefs", Context.MODE_PRIVATE)
+        val cachedLastModified = prefs.getLong("bin_remote_last_modified", 0L)
+        val cachedContentLength = prefs.getLong("bin_remote_content_length", 0L)
+
         if (!force && binFile.exists() && binFile.length() > 1024) {
-            binFile.setExecutable(true, false)
-            onProgress(100)
-            return@withContext Result.success(binFile)
+            val isNewer = checkIsServerBinaryNewer(cachedLastModified, cachedContentLength)
+            if (!isNewer) {
+                binFile.setExecutable(true, false)
+                onProgress(100)
+                return@withContext Result.success(binFile)
+            }
         }
 
         downloadBinaryFromServer(context, onProgress)
@@ -113,6 +162,15 @@ object BinaryDownloader {
                 targetBin.setExecutable(true, false)
                 targetBin.setReadable(true, false)
                 ShellExecutor.execute("chmod 755 '${targetBin.absolutePath}'")
+
+                try {
+                    val prefs = context.getSharedPreferences("crackmaster_bin_prefs", Context.MODE_PRIVATE)
+                    prefs.edit()
+                        .putLong("bin_remote_last_modified", conn.lastModified)
+                        .putLong("bin_remote_content_length", totalLength)
+                        .apply()
+                } catch (_: Exception) {}
+
                 onProgress(100)
                 Result.success(targetBin)
             } else {

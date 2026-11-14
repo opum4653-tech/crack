@@ -113,6 +113,7 @@ class InteractiveProcessBridge(
                 _isRunning.value = false
                 _isStarted.value = false
                 if (!_isLicenseVerified.value) {
+                    BinaryDownloader.deleteCachedBinary(context)
                     _errorEvent.emit("Process terminated before authorization was confirmed.")
                 }
             }
