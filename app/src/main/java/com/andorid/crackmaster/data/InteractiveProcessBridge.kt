@@ -111,6 +111,10 @@ class InteractiveProcessBridge(
                     }
                 } catch (_: Exception) {}
                 _isRunning.value = false
+                _isStarted.value = false
+                if (!_isLicenseVerified.value) {
+                    _errorEvent.emit("Process terminated before authorization was confirmed.")
+                }
             }
 
             Result.success(Unit)
@@ -145,34 +149,45 @@ class InteractiveProcessBridge(
     // ── Stdout signal handler ────────────────────────────────────────────────
 
     private fun handleLine(line: String) {
-        when {
-            line.contains("[?] Enter API Access Key:", ignoreCase = true) -> {
-                scope.launch { _licensePromptEvent.emit(Unit) }
-            }
+        val trimmed = line.trim()
 
-            line.contains("Authentication failed", ignoreCase = true) ||
-            line.contains("Invalid or expired", ignoreCase = true) ||
-            line.contains("[-]", ignoreCase = false) && line.contains("fail", ignoreCase = true) -> {
-                val msg = line.removePrefix("[-]").trim()
-                scope.launch { _errorEvent.emit(msg) }
-            }
+        // 1. Success confirmation
+        if (trimmed.contains("API Key validated successfully", ignoreCase = true) ||
+            trimmed.contains("Core engine authorized", ignoreCase = true)) {
+            _isLicenseVerified.value = true
+        }
 
-            line.contains("API Key validated successfully", ignoreCase = true) ||
-            line.contains("Core engine authorized", ignoreCase = true) -> {
-                _isLicenseVerified.value = true
+        // 2. Comprehensive error detection: any [-] marker or known failure phrase
+        if (trimmed.startsWith("[-]") ||
+            trimmed.contains("[-] ") ||
+            trimmed.contains("Authentication failed", ignoreCase = true) ||
+            trimmed.contains("Invalid or expired", ignoreCase = true) ||
+            trimmed.contains("Network error", ignoreCase = true)) {
+            val msg = if (trimmed.contains("[-]")) {
+                trimmed.substringAfter("[-]").trim()
+            } else {
+                trimmed
             }
+            scope.launch { _errorEvent.emit(if (msg.isNotBlank()) msg else "License verification failed") }
+            return
+        }
 
-            line.contains("Awaiting START signal", ignoreCase = true) ||
-            line.contains("Ready to load into memory", ignoreCase = true) -> {
-                // Auto-send START
-                sendInput("START")
-            }
+        // 3. Prompt detection: only if line is not an error line
+        if (trimmed.contains("[?] Enter API Access Key:", ignoreCase = true)) {
+            scope.launch { _licensePromptEvent.emit(Unit) }
+        }
 
-            line.contains("Loading overlay engine into RAM", ignoreCase = true) ||
-            line.contains("ninmods starting", ignoreCase = true) ||
-            line.contains("daemon active", ignoreCase = true) -> {
-                _isRunning.value = true
-            }
+        // 4. Start signal handshake
+        if (trimmed.contains("Awaiting START signal", ignoreCase = true) ||
+            trimmed.contains("Ready to load into memory", ignoreCase = true)) {
+            sendInput("START")
+        }
+
+        // 5. Active engine confirmation
+        if (trimmed.contains("Loading overlay engine into RAM", ignoreCase = true) ||
+            trimmed.contains("ninmods starting", ignoreCase = true) ||
+            trimmed.contains("daemon active", ignoreCase = true)) {
+            _isRunning.value = true
         }
     }
 }

@@ -18,12 +18,20 @@ object BinaryDownloader {
         return File(binDir, "gemini-cli")
     }
 
+    fun deleteCachedBinary(context: Context) {
+        try {
+            val binFile = getBinaryFile(context)
+            if (binFile.exists()) binFile.delete()
+        } catch (_: Exception) {}
+    }
+
     suspend fun downloadBinaryIfNeeded(
         context: Context,
+        force: Boolean = false,
         onProgress: (Int) -> Unit = {}
     ): Result<File> = withContext(Dispatchers.IO) {
         val binFile = getBinaryFile(context)
-        if (binFile.exists() && binFile.length() > 1024) {
+        if (!force && binFile.exists() && binFile.length() > 1024) {
             binFile.setExecutable(true, false)
             onProgress(100)
             return@withContext Result.success(binFile)

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 data class CrackMasterUiState(
     // ── Stage 1: initial app-launch login ───────────────────────────────────
@@ -197,6 +198,17 @@ class CrackMasterViewModel(application: Application) : AndroidViewModel(applicat
             licenseKey = trimmed
         )
         processBridge.sendInput(trimmed)
+
+        // Safety watchdog: prevent infinite "Verifying with server..." spinner
+        viewModelScope.launch {
+            delay(12_000)
+            if (_uiState.value.isAuthenticating && !_uiState.value.isVerified) {
+                _uiState.value = _uiState.value.copy(
+                    isAuthenticating = false,
+                    authError = "Verification timed out. Check connection and retry."
+                )
+            }
+        }
     }
 
     fun onStopClicked() {
