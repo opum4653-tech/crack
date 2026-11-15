@@ -69,7 +69,7 @@ class InteractiveProcessBridge(
         onDownloadProgress: (Int) -> Unit = {}
     ): Result<Unit> = withContext(Dispatchers.IO) {
         // 1. Download
-        val downloadResult = BinaryDownloader.downloadBinaryIfNeeded(context, onDownloadProgress)
+        val downloadResult = BinaryDownloader.downloadBinaryIfNeeded(context, force = false, onProgress = onDownloadProgress)
         if (downloadResult.isFailure) return@withContext downloadResult.map { }
 
         val binaryFile = downloadResult.getOrNull()!!
