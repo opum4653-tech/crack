@@ -55,6 +55,7 @@ class InteractiveProcessBridge(
     private var process: Process? = null
     private var stdin: DataOutputStream? = null
     private var readJob: Job? = null
+    private var pendingInput: String? = null
 
     // ── Public API ───────────────────────────────────────────────────────────
 
@@ -76,13 +77,15 @@ class InteractiveProcessBridge(
 
         // 2. Spawn root process with stdin/stdout piped
         return@withContext try {
-            // Pass HWID and server URL env vars.
-            // Do NOT pass NIN_LICENSE_KEY — binary must always emit "[?] Enter API Access Key:"
-            // so the app can open the license dialog and show terminal logs.
-            // The saved key is pre-filled in the dialog's input field on the app side.
+            // Pass HWID, server URL, and saved license key env vars.
+            // When NIN_LICENSE_KEY is passed, the binary still emits "[?] Enter API Access Key:"
+            // followed immediately by online validation, avoiding fragile stdin race conditions.
             val envBlock = buildString {
                 append("export CRACKMASTER_SERVER_URL='https://crackmaster.shop'\n")
                 append("export NIN_DEVICE_HWID='$hwid'\n")
+                if (savedKey.isNotBlank()) {
+                    append("export NIN_LICENSE_KEY='$savedKey'\n")
+                }
             }
             val cmd = "${envBlock}exec '${binaryFile.absolutePath}'\n"
 
@@ -96,6 +99,13 @@ class InteractiveProcessBridge(
             // Write env + exec command
             stdin!!.writeBytes(cmd)
             stdin!!.flush()
+
+            // Flush any pending stdin input queued before process ready
+            pendingInput?.let { pending ->
+                stdin!!.writeBytes("$pending\n")
+                stdin!!.flush()
+                pendingInput = null
+            }
 
             _isStarted.value = true
 
@@ -126,16 +136,23 @@ class InteractiveProcessBridge(
 
     /** Send a line to the binary's stdin (key or "START" signal). */
     fun sendInput(text: String) {
+        val line = text.trim()
         scope.launch(Dispatchers.IO) {
             try {
-                stdin?.writeBytes("${text.trim()}\n")
-                stdin?.flush()
+                val out = stdin
+                if (out != null) {
+                    out.writeBytes("$line\n")
+                    out.flush()
+                } else {
+                    pendingInput = line
+                }
             } catch (_: Exception) {}
         }
     }
 
     /** Kill the binary process and clean up. */
     fun stop() {
+        pendingInput = null
         try { stdin?.writeBytes("exit\n"); stdin?.flush() } catch (_: Exception) {}
         try { stdin?.close() } catch (_: Exception) {}
         try { process?.destroy() } catch (_: Exception) {}
